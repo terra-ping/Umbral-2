@@ -1,0 +1,40 @@
+name: Build Umbral APK
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Instalar dependencias
+        run: npm install
+      - name: Compilar web y verificar recursos
+        run: |
+          npm run build
+          test -s dist/index.html
+          find dist -maxdepth 2 -type f
+      - name: Crear y sincronizar Android
+        run: |
+          npx cap add android
+          npx cap sync android
+          test -s android/app/src/main/assets/public/index.html
+      - name: Compilar APK
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: umbral-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
